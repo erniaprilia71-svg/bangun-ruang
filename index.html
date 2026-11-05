@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lab Maya Bangun Ruang - Kelas 3 SD</title>
+    <!-- Tailwind CSS (Via CDN fallback & Inline minimal styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 50%, #9333EA 100%);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+        /* Container 16:9 Aspect Ratio */
+        .app-container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 177.78vh; /* 16:9 aspect ratio */
+            max-height: 56.25vw;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border-radius: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            border: 4px solid #FDE047;
+        }
+        canvas {
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        .btn-bounce {
+            transition: transform 0.1s active, box-shadow 0.1s;
+        }
+        .btn-bounce:active {
+            transform: scale(0.95);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #FBBF24;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Container Frame (Strict 16:9 Layout dynamic scaling) -->
+    <div class="app-container p-3 sm:p-5 flex flex-col justify-between">
+        
+        <!-- Header Navigasi -->
+        <header class="flex justify-between items-center bg-yellow-400 rounded-2xl px-4 py-2 border-b-4 border-yellow-600 shadow-sm">
+            <div class="flex items-center gap-2">
+                <span class="text-3xl">🧊</span>
+                <div>
+                    <h1 class="font-game text-xl sm:text-2xl text-blue-900 leading-tight">LAB MAYA BANGUN RUANG</h1>
+                    <p class="text-xs sm:text-sm text-blue-800 font-bold">Matematika Kelas 3 SD</p>
+                </div>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="flex gap-2 bg-yellow-200 p-1 rounded-xl">
+                <button id="tab-explore" onclick="switchTab('explore')" class="btn-bounce font-game px-3 sm:px-5 py-1.5 rounded-lg text-sm sm:text-base bg-blue-600 text-white shadow-md">
+                    🔍 Eksplorasi 3D
+                </button>
+                <button id="tab-quiz" onclick="switchTab('quiz')" class="btn-bounce font-game px-3 sm:px-5 py-1.5 rounded-lg text-sm sm:text-base text-blue-900 hover:bg-yellow-300">
+                    🎯 Kuis Interaktif
+                </button>
+            </div>
+
+            <!-- Audio Toggle & Reset -->
+            <div class="flex items-center gap-2">
+                <button id="btn-sound" onclick="toggleSound()" class="bg-white p-2 rounded-xl text-xl shadow border-2 border-yellow-500">
+                    🔊
+                </button>
+            </div>
+        </header>
+
+        <!-- AREA 1: EKSPLORASI 3D -->
+        <main id="view-explore" class="flex-1 grid grid-cols-12 gap-3 mt-3 overflow-hidden">
+            <!-- Sidebar Pilih Bangun Ruang -->
+            <div class="col-span-3 sm:col-span-3 bg-blue-50/80 rounded-2xl p-2 sm:p-3 border-2 border-blue-200 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                <h2 class="font-game text-blue-800 text-xs sm:text-sm mb-2 text-center">PILIH BANGUN RUANG</h2>
+                <div class="grid grid-cols-1 gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold" id="shape-selector">
+                    <!-- Dynamic shapes buttons -->
+                </div>
+            </div>
+
+            <!-- Canvas Viewport 3D -->
+            <div class="col-span-6 sm:col-span-6 bg-gradient-to-b from-sky-100 to-indigo-50 rounded-2xl border-2 border-indigo-200 relative flex flex-col items-center justify-center overflow-hidden">
+                <!-- Instructions overlay -->
+                <div class="absolute top-2 left-3 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-gray-600 shadow-sm pointer-events-none">
+                    👆 Geser untuk memutar 360°
+                </div>
+
+                <!-- WebGL / Canvas 3D Render -->
+                <canvas id="canvas3d" class="w-full h-full"></canvas>
+
+                <!-- Rotation Controls & Reset -->
+                <div class="absolute bottom-2 flex gap-2">
+                    <button onclick="autoRotateToggle()" id="btn-autorotate" class="bg-white/90 px-3 py-1 rounded-xl text-xs font-bold text-indigo-700 shadow border border-indigo-200 flex items-center gap-1">
+                        🔄 Putar Otomatis
+                    </button>
+                    <button onclick="resetCamera()" class="bg-white/90 px-3 py-1 rounded-xl text-xs font-bold text-gray-700 shadow border border-gray-200">
+                        🎯 Reset Posisi
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel Informasi Unsur-Unsur -->
+            <div class="col-span-3 sm:col-span-3 bg-amber-50/90 rounded-2xl p-3 border-2 border-amber-200 flex flex-col justify-between overflow-y-auto">
+                <div>
+                    <div class="flex items-center justify-between border-b-2 border-amber-200 pb-2 mb-2">
+                        <h2 id="info-title" class="font-game text-amber-900 text-base sm:text-lg">Kubus</h2>
+                        <span id="info-badge" class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md text-xs font-bold">Bangun Ruang</span>
+                    </div>
+
+                    <!-- Statistik Sisi, Rusuk, Titik Sudut -->
+                    <div class="grid grid-cols-3 gap-1 mb-3 text-center">
+                        <div class="bg-white p-1.5 rounded-xl border border-amber-200 shadow-sm">
+                            <span class="block text-xs text-gray-500 font-bold">Sisi</span>
+                            <span id="info-faces" class="font-game text-xl text-blue-600">6</span>
+                        </div>
+                        <div class="bg-white p-1.5 rounded-xl border border-amber-200 shadow-sm">
+                            <span class="block text-xs text-gray-500 font-bold">Rusuk</span>
+                            <span id="info-edges" class="font-game text-xl text-emerald-600">12</span>
+                        </div>
+                        <div class="bg-white p-1.5 rounded-xl border border-amber-200 shadow-sm">
+                            <span class="block text-xs text-gray-500 font-bold">Sudut</span>
+                            <span id="info-vertices" class="font-game text-xl text-purple-600">8</span>
+                        </div>
+                    </div>
+
+                    <!-- Deskripsi & Ciri-Ciri -->
+                    <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200 text-xs text-gray-700 leading-relaxed mb-2">
+                        <h3 class="font-bold text-amber-800 mb-1">Ciri-Ciri & Unsur:</h3>
+                        <p id="info-desc">Memiliki 6 sisi berbentuk persegi yang sama besar.</p>
+                    </div>
+
+                    <!-- Contoh Benda Nyata -->
+                    <div class="bg-amber-100/60 p-2 rounded-xl text-xs">
+                        <span class="font-bold text-amber-900 block mb-1">💡 Contoh di sekitar kita:</span>
+                        <span id="info-examples" class="text-amber-800 italic">Dadu, Kotak Kado, Rubik</span>
+                    </div>
+                </div>
+
+                <button onclick="speakInfo()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-game py-2 rounded-xl text-xs sm:text-sm shadow-md mt-2 flex items-center justify-center gap-1 btn-bounce">
+                    🔊 Dengarkan Penjelasan
+                </button>
+            </div>
+        </main>
+
+        <!-- AREA 2: KUIS INTERAKTIF -->
+        <main id="view-quiz" class="hidden flex-1 grid grid-cols-12 gap-3 mt-3 overflow-hidden">
+            <!-- Left Side: Quiz Display -->
+            <div class="col-span-8 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200 p-4 flex flex-col justify-between relative">
+                <!-- Quiz Progress Bar & Score -->
+                <div class="flex justify-between items-center bg-white/80 px-4 py-2 rounded-xl border border-purple-100">
+                    <div class="flex items-center gap-2">
+                        <span class="font-game text-purple-900">Pertanyaan <span id="quiz-num">1</span>/5</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1">
+                            <span class="text-yellow-500 text-xl">⭐</span>
+                            <span id="quiz-score" class="font-game text-xl text-purple-900">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Soal Kuis -->
+                <div class="my-auto text-center px-4">
+                    <span id="quiz-badge" class="bg-purple-200 text-purple-800 font-bold text-xs px-3 py-1 rounded-full uppercase tracking-wider mb-2 inline-block">Tebak Bangun Ruang</span>
+                    <h2 id="quiz-question" class="font-game text-lg sm:text-2xl text-gray-800 mb-4 leading-snug">
+                        Aku memiliki 6 sisi persegi yang sama besar dan 8 titik sudut. Siapakah aku?
+                    </h2>
+                    
+                    <!-- Visual Clue Canvas / Image Placeholder -->
+                    <div class="w-28 h-28 mx-auto mb-2 bg-white rounded-2xl shadow-inner border border-purple-200 flex items-center justify-center overflow-hidden">
+                        <canvas id="quiz-canvas" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+
+                <!-- Pilihan Jawaban -->
+                <div id="quiz-options" class="grid grid-cols-2 gap-3">
+                    <!-- Option Buttons Injected via JS -->
+                </div>
+            </div>
+
+            <!-- Right Side: Score Board & Mascot -->
+            <div class="col-span-4 bg-white/80 rounded-2xl border-2 border-purple-200 p-4 flex flex-col items-center justify-between text-center">
+                <div class="w-full">
+                    <h3 class="font-game text-purple-900 text-lg mb-2">Papan Prestasi</h3>
+                    <div class="bg-yellow-100 border-2 border-yellow-300 rounded-2xl p-3 mb-3">
+                        <div class="text-3xl mb-1" id="quiz-mascot">🤖</div>
+                        <p id="quiz-feedback" class="text-xs font-bold text-yellow-900">Yuk, uji pengetahuanmu tentang bangun ruang!</p>
+                    </div>
+                </div>
+
+                <!-- Stars Collector -->
+                <div class="w-full bg-purple-50 p-3 rounded-2xl border border-purple-100">
+                    <span class="text-xs font-bold text-purple-700 block mb-2">Koleksi Bintangmu:</span>
+                    <div class="flex justify-center gap-1 text-2xl" id="stars-container">
+                        <span>⚪</span><span>⚪</span><span>⚪</span><span>⚪</span><span>⚪</span>
+                    </div>
+                </div>
+
+                <button onclick="startQuiz()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-game py-2.5 rounded-xl text-sm shadow-md btn-bounce">
+                    🔄 Ulang Kuis
+                </button>
+            </div>
+        </main>
+
+        <!-- Footer Footer Info -->
+        <footer class="mt-2 flex justify-between items-center px-2 text-[11px] text-gray-500 font-bold">
+            <span>Media Pembelajaran Matematika SD Kelas 3 • Lab Maya 3D Standalone</span>
+            <span>Mode Audio: Web Audio Synthesizer (100% Offline)</span>
+        </footer>
+
+    </div>
+
+    <!-- JAVASCRIPT ENGINE (Standalone Canvas 3D & Audio Synthesizer) -->
+    <script>
+        /* ----------------------------------------------------
+         * 1. AUDIO SYNTHESIZER (Web Audio API - 100% Offline)
+         * ---------------------------------------------------- */
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(150, now + 0.25);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'rotate') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, now);
+                gain.gain.setValueAtTime(0.02, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.03);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('btn-sound').innerText = soundEnabled ? '🔊' : '🔇';
+        }
+
+        function speakInfo() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const shape = shapesData[currentShapeKey];
+                const text = `${shape.name}. Memiliki ${shape.faces} sisi, ${shape.edges} rusuk, dan ${shape.vertices} titik sudut. ${shape.desc}`;
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        /* ----------------------------------------------------
+         * 2. DATA BANGUN RUANG
+         * ---------------------------------------------------- */
+        const shapesData = {
+            kubus: {
+                name: 'Kubus',
+                badge: 'Prisma Teratur',
+                color: '#3B82F6',
+                faces: 6,
+                edges: 12,
+                vertices: 8,
+                desc: 'Memiliki 6 sisi berbentuk persegi yang sama besar dan 12 rusuk sama panjang.',
+                examples: 'Dadu, Rubik, Kotak Kado',
+                type: 'polyhedron',
+                vertices3D: [
+                    [-1,-1,-1], [1,-1,-1], [1,1,-1], [-1,1,-1],
+                    [-1,-1,1],  [1,-1,1],  [1,1,1],  [-1,1,1]
+                ],
+                faces3D: [
+                    [0,1,2,3], [5,4,7,6], [4,0,3,7],
+                    [1,5,6,2], [4,5,1,0], [3,2,6,7]
+                ]
+            },
+            balok: {
+                name: 'Balok',
+                badge: 'Prisma Siku-Siku',
+                color: '#10B981',
+                faces: 6,
+                edges: 12,
+                vertices: 8,
+                desc: 'Memiliki 6 sisi, di mana sisi yang berhadapan sejajar dan sama besar.',
+                examples: 'Kotak Pensil, Penghapus, Lemari',
+                type: 'polyhedron',
+                vertices3D: [
+                    [-1.4,-0.8,-0.8], [1.4,-0.8,-0.8], [1.4,0.8,-0.8], [-1.4,0.8,-0.8],
+                    [-1.4,-0.8,0.8],  [1.4,-0.8,0.8],  [1.4,0.8,0.8],  [-1.4,0.8,0.8]
+                ],
+                faces3D: [
+                    [0,1,2,3], [5,4,7,6], [4,0,3,7],
+                    [1,5,6,2], [4,5,1,0], [3,2,6,7]
+                ]
+            },
+            tabung: {
+                name: 'Tabung',
+                badge: 'Bangun Lengkung',
+                color: '#F59E0B',
+                faces: 3,
+                edges: 2,
+                vertices: 0,
+                desc: 'Memiliki alas dan tutup berbentuk lingkaran yang sama besar, serta 1 sisi selimut lengkung.',
+                examples: 'Kaleng Minuman, Drum, Botol',
+                type: 'cylinder'
+            },
+            kerucut: {
+                name: 'Kerucut',
+                badge: 'Bangun Lengkung',
+                color: '#EC4899',
+                faces: 2,
+                edges: 1,
+                vertices: 1,
+                desc: 'Memiliki 1 alas lingkaran dan 1 titik puncak di bagian atas.',
+                examples: 'Topi Ulang Tahun, Tumpeng, Cone Es Krim',
+                type: 'cone'
+            },
+            bola: {
+                name: 'Bola',
+                badge: 'Bangun Lengkung',
+                color: '#8B5CF6',
+                faces: 1,
+                edges: 0,
+                vertices: 0,
+                desc: 'Hanya memiliki 1 sisi lengkung dan tidak memiliki titik sudut maupun rusuk.',
+                examples: 'Bola Sepak, Kelereng, Globe',
+                type: 'sphere'
+            },
+            prisma: {
+                name: 'Prisma Segitiga',
+                badge: 'Prisma',
+                color: '#06B6D4',
+                faces: 5,
+                edges: 9,
+                vertices: 6,
+                desc: 'Memiliki alas dan tutup berbentuk segitiga yang identik, serta 3 sisi tegak.',
+                examples: 'Tenda Camping, Atap Rumah, Cokelat Toblerone',
+                type: 'polyhedron',
+                vertices3D: [
+                    [0, 1.2, -1], [-1.1, -0.8, -1], [1.1, -0.8, -1],
+                    [0, 1.2, 1],  [-1.1, -0.8, 1],  [1.1, -0.8, 1]
+                ],
+                faces3D: [
+                    [0, 1, 2], [5, 4, 3], 
+                    [0, 3, 4, 1], [1, 4, 5, 2], [2, 5, 3, 0]
+                ]
+            }
+        };
+
+        let currentShapeKey = 'kubus';
+
+        /* ----------------------------------------------------
+         * 3. ENGINE ENGINE CANVAS 3D (Pure Mathematics 3D Render)
+         * ---------------------------------------------------- */
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+
+        let rotX = 0.4;
+        let rotY = 0.6;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let isAutoRotate = true;
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 50);
+
+        // Trackpad & Mouse Drag Events
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            isAutoRotate = false;
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - lastMouseX;
+            const deltaY = e.clientY - lastMouseY;
+            
+            rotY += deltaX * 0.01;
+            rotX += deltaY * 0.01;
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            playSound('rotate');
+        });
+
+        // Touch events for Mobile
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                lastMouseX = e.touches[0].clientX;
+                lastMouseY = e.touches[0].clientY;
+                isAutoRotate = false;
+            }
+        });
+
+        canvas.addEventListener('touchend', () => isDragging = false);
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - lastMouseX;
+            const deltaY = e.touches[0].clientY - lastMouseY;
+            
+            rotY += deltaX * 0.01;
+            rotX += deltaY * 0.01;
+            
+            lastMouseX = e.touches[0].clientX;
+            lastMouseY = e.touches[0].clientY;
+        });
+
+        function autoRotateToggle() {
+            isAutoRotate = !isAutoRotate;
+            playSound('click');
+        }
+
+        function resetCamera() {
+            rotX = 0.4;
+            rotY = 0.6;
+            playSound('click');
+        }
+
+        // 3D Point Projection Helper
+        function project(x, y, z, width, height) {
+            // Rotate Y
+            let x1 = x * Math.cos(rotY) + z * Math.sin(rotY);
+            let z1 = -x * Math.sin(rotY) + z * Math.cos(rotY);
+            let y1 = y;
+
+            // Rotate X
+            let y2 = y1 * Math.cos(rotX) - z1 * Math.sin(rotX);
+            let z2 = y1 * Math.sin(rotX) + z1 * Math.cos(rotX);
+            let x2 = x1;
+
+            // Perspective Projection
+            const distance = 4;
+            const scale = Math.min(width, height) * 0.22;
+            const fov = scale / (z2 + distance);
+
+            return {
+                x: width / 2 + x2 * fov,
+                y: height / 2 - y2 * fov,
+                z: z2
+            };
+        }
+
+        // Render Loop
+        function render3D() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (isAutoRotate && !isDragging) {
+                rotY += 0.008;
+            }
+
+            const shape = shapesData[currentShapeKey];
+            const w = canvas.width;
+            const h = canvas.height;
+
+            if (shape.type === 'polyhedron') {
+                renderPolyhedron(shape, w, h);
+            } else if (shape.type === 'cylinder') {
+                renderCylinder(w, h);
+            } else if (shape.type === 'cone') {
+                renderCone(w, h);
+            } else if (shape.type === 'sphere') {
+                renderSphere(w, h);
+            }
+
+            requestAnimationFrame(render3D);
+        }
+
+        // Render Polyhedrons (Kubus, Balok, Prisma)
+        function renderPolyhedron(shape, w, h) {
+            const projected = shape.vertices3D.map(v => project(v[0], v[1], v[2], w, h));
+            
+            // Sort faces by depth for realistic rendering (Painter's Algorithm)
+            const facesWithDepth = shape.faces3D.map(face => {
+                let avgZ = 0;
+                face.forEach(idx => avgZ += projected[idx].z);
+                return { face, avgZ: avgZ / face.length };
+            });
+
+            facesWithDepth.sort((a, b) => b.avgZ - a.avgZ);
+
+            // Draw Faces
+            facesWithDepth.forEach(({ face }) => {
+                ctx.beginPath();
+                ctx.moveTo(projected[face[0]].x, projected[face[0]].y);
+                for (let i = 1; i < face.length; i++) {
+                    ctx.lineTo(projected[face[i]].x, projected[face[i]].y);
+                }
+                ctx.closePath();
+
+                ctx.fillStyle = shape.color + 'AA'; // Semi-transparent
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#1E293B';
+                ctx.stroke();
+            });
+
+            // Draw Vertex Points
+            projected.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#F59E0B';
+                ctx.fill();
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // Render Tabung
+        function renderCylinder(w, h) {
+            const segments = 24;
+            const radius = 1.0;
+            const height = 2.2;
+            const topPts = [];
+            const botPts = [];
+
+            for (let i = 0; i < segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                topPts.push(project(x, height / 2, z, w, h));
+                botPts.push(project(x, -height / 2, z, w, h));
+            }
+
+            // Side Wall
+            ctx.fillStyle = '#F59E0BAA';
+            ctx.beginPath();
+            ctx.moveTo(topPts[0].x, topPts[0].y);
+            for (let i = 0; i < segments; i++) {
+                const next = (i + 1) % segments;
+                ctx.lineTo(topPts[next].x, topPts[next].y);
+            }
+            for (let i = segments - 1; i >= 0; i--) {
+                ctx.lineTo(botPts[i].x, botPts[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Circles Outline
+            [topPts, botPts].forEach(pts => {
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                pts.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.closePath();
+                ctx.fillStyle = '#FBBF24DD';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#78350F';
+                ctx.stroke();
+            });
+        }
+
+        // Render Kerucut
+        function renderCone(w, h) {
+            const segments = 24;
+            const radius = 1.2;
+            const height = 2.4;
+            const apex = project(0, height / 2, 0, w, h);
+            const basePts = [];
+
+            for (let i = 0; i < segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                basePts.push(project(x, -height / 2, z, w, h));
+            }
+
+            // Side cone lines
+            basePts.forEach((p, idx) => {
+                if (idx % 3 === 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(apex.x, apex.y);
+                    ctx.lineTo(p.x, p.y);
+                    ctx.strokeStyle = '#EC489955';
+                    ctx.stroke();
+                }
+            });
+
+            // Cone Base
+            ctx.beginPath();
+            ctx.moveTo(basePts[0].x, basePts[0].y);
+            basePts.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fillStyle = '#F472B6AA';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#831843';
+            ctx.stroke();
+
+            // Cone Sides Fill
+            ctx.beginPath();
+            ctx.moveTo(apex.x, apex.y);
+            ctx.lineTo(basePts[0].x, basePts[0].y);
+            ctx.lineTo(basePts[Math.floor(segments / 2)].x, basePts[Math.floor(segments / 2)].y);
+            ctx.closePath();
+            ctx.fillStyle = '#EC4899AA';
+            ctx.fill();
+
+            // Apex Point
+            ctx.beginPath();
+            ctx.arc(apex.x, apex.y, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#F59E0B';
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // Render Bola
+        function renderSphere(w, h) {
+            const center = project(0, 0, 0, w, h);
+            const radius = Math.min(w, h) * 0.22;
+
+            // Base Radial Gradient Sphere
+            const grad = ctx.createRadialGradient(
+                center.x - radius * 0.3, center.y - radius * 0.3, radius * 0.1,
+                center.x, center.y, radius
+            );
+            grad.addColorStop(0, '#C4B5FD');
+            grad.addColorStop(0.5, '#8B5CF6');
+            grad.addColorStop(1, '#4C1D95');
+
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#4C1D95';
+            ctx.stroke();
+
+            // 3D Latitude/Longitude circles overlay
+            ctx.beginPath();
+            ctx.ellipse(center.x, center.y, radius, radius * 0.35, rotY, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        /* ----------------------------------------------------
+         * 4. APP INTERACTIVITY & TABS SWITCHER
+         * ---------------------------------------------------- */
+        function initShapeSelector() {
+            const container = document.getElementById('shape-selector');
+            container.innerHTML = '';
+
+            Object.keys(shapesData).forEach(key => {
+                const shape = shapesData[key];
+                const btn = document.createElement('button');
+                btn.className = `p-2 rounded-xl text-left font-game text-xs sm:text-sm flex items-center gap-2 border-2 transition-all ${
+                    key === currentShapeKey 
+                    ? 'bg-blue-600 text-white border-blue-800 shadow-md scale-105' 
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50'
+                }`;
+                btn.onclick = () => selectShape(key);
+                btn.innerHTML = `<span class="w-3 h-3 rounded-full inline-block" style="background:${shape.color}"></span> ${shape.name}`;
+                container.appendChild(btn);
+            });
+        }
+
+        function selectShape(key) {
+            currentShapeKey = key;
+            playSound('click');
+            initShapeSelector();
+
+            const shape = shapesData[key];
+            document.getElementById('info-title').innerText = shape.name;
+            document.getElementById('info-badge').innerText = shape.badge;
+            document.getElementById('info-faces').innerText = shape.faces;
+            document.getElementById('info-edges').innerText = shape.edges;
+            document.getElementById('info-vertices').innerText = shape.vertices;
+            document.getElementById('info-desc').innerText = shape.desc;
+            document.getElementById('info-examples').innerText = shape.examples;
+        }
+
+        function switchTab(tab) {
+            playSound('click');
+            const tabExp = document.getElementById('tab-explore');
+            const tabQuiz = document.getElementById('tab-quiz');
+            const viewExp = document.getElementById('view-explore');
+            const viewQuiz = document.getElementById('view-quiz');
+
+            if (tab === 'explore') {
+                tabExp.className = "btn-bounce font-game px-3 sm:px-5 py-1.5 rounded-lg text-sm sm:text-base bg-blue-600 text-white shadow-md";
+                tabQuiz.className = "btn-bounce font-game px-3 sm:px-5 py-1.5 rounded-lg text-sm sm:text-base text-blue-900 hover:bg-yellow-300";
+                viewExp.classList.remove('hidden');
+                viewQuiz.classList.add('hidden');
+            } else {
+                tabQuiz.className = "btn-bounce font-game px-3 sm:px-5 py-1.5 rounded-lg text-sm sm:text-base bg-blue-600 text-white shadow-md";
+                tabExp.className = "btn-bounce font-game px-3 sm:px-5 py-1.5 rounded-lg text-sm sm:text-base text-blue-900 hover:bg-yellow-300";
+                viewQuiz.classList.remove('hidden');
+                viewExp.classList.add('hidden');
+                startQuiz();
+            }
+        }
+
+        /* ----------------------------------------------------
+         * 5. KUIS INTERAKTIF SYSTEM
+         * ---------------------------------------------------- */
+        const quizQuestions = [
+            {
+                question: "Aku punya 6 sisi persegi yang sama besar dan 8 titik sudut. Siapakah aku?",
+                answer: "Kubus",
+                options: ["Kubus", "Balok", "Tabung", "Bola"]
+            },
+            {
+                question: "Aku tidak memiliki titik sudut dan rusuk, serta hanya 1 sisi lengkung. Siapakah aku?",
+                answer: "Bola",
+                options: ["Kerucut", "Bola", "Prisma Segitiga", "Kubus"]
+            },
+            {
+                question: "Alas dan tutupku berbentuk lingkaran yang sama. Siapakah aku?",
+                answer: "Tabung",
+                options: ["Kerucut", "Balok", "Tabung", "Prisma Segitiga"]
+            },
+            {
+                question: "Aku memiliki 1 titik puncak di atas dan alas berbentuk lingkaran. Siapakah aku?",
+                answer: "Kerucut",
+                options: ["Kerucut", "Bola", "Kubus", "Tabung"]
+            },
+            {
+                question: "Benda seperti Tenda Camping berbentuk bangun ruang apa?",
+                answer: "Prisma Segitiga",
+                options: ["Balok", "Prisma Segitiga", "Kubus", "Kerucut"]
+            }
+        ];
+
+        let currentQuizIndex = 0;
+        let score = 0;
+
+        function startQuiz() {
+            currentQuizIndex = 0;
+            score = 0;
+            document.getElementById('quiz-score').innerText = score;
+            updateStars();
+            loadQuizQuestion();
+        }
+
+        function loadQuizQuestion() {
+            const q = quizQuestions[currentQuizIndex];
+            document.getElementById('quiz-num').innerText = currentQuizIndex + 1;
+            document.getElementById('quiz-question').innerText = q.question;
+            document.getElementById('quiz-feedback').innerText = "Pilihlah satu jawaban yang menurutmu benar!";
+            document.getElementById('quiz-mascot').innerText = "🤔";
+
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+
+            // Shuffle options
+            const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "w-full bg-white hover:bg-purple-100 border-2 border-purple-300 text-purple-900 font-game py-3 px-4 rounded-xl text-sm sm:text-base shadow-sm btn-bounce text-left flex items-center justify-between";
+                btn.innerHTML = `<span>${opt}</span> <span class="text-xs bg-purple-100 px-2 py-1 rounded-md text-purple-600">Pilih</span>`;
+                btn.onclick = () => checkAnswer(opt, q.answer, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, correct, btnElement) {
+            const allBtns = document.getElementById('quiz-options').querySelectorAll('button');
+            allBtns.forEach(b => b.disabled = true);
+
+            if (selected === correct) {
+                playSound('correct');
+                score += 20;
+                document.getElementById('quiz-score').innerText = score;
+                btnElement.className = "w-full bg-emerald-500 text-white font-game py-3 px-4 rounded-xl text-sm sm:text-base shadow-md text-left flex items-center justify-between border-2 border-emerald-700";
+                btnElement.innerHTML += ` <span>✅ Benar!</span>`;
+                document.getElementById('quiz-feedback').innerText = "Hebat sekali! Jawabanmu Tepat! 🎉";
+                document.getElementById('quiz-mascot').innerText = "🥳";
+            } else {
+                playSound('wrong');
+                btnElement.className = "w-full bg-red-500 text-white font-game py-3 px-4 rounded-xl text-sm sm:text-base shadow-md text-left flex items-center justify-between border-2 border-red-700";
+                btnElement.innerHTML += ` <span>❌ Salah</span>`;
+                document.getElementById('quiz-feedback').innerText = `Ups! Jawaban yang benar adalah ${correct}.`;
+                document.getElementById('quiz-mascot').innerText = "😅";
+            }
+
+            updateStars();
+
+            setTimeout(() => {
+                currentQuizIndex++;
+                if (currentQuizIndex < quizQuestions.length) {
+                    loadQuizQuestion();
+                } else {
+                    finishQuiz();
+                }
+            }, 1800);
+        }
+
+        function updateStars() {
+            const starsCount = Math.floor(score / 20);
+            const container = document.getElementById('stars-container');
+            let starsHTML = '';
+            for (let i = 0; i < 5; i++) {
+                if (i < starsCount) {
+                    starsHTML += '<span class="animate-bounce">⭐</span>';
+                } else {
+                    starsHTML += '<span class="opacity-30">⚪</span>';
+                }
+            }
+            container.innerHTML = starsHTML;
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-question').innerText = `Kuis Selesai! Kamu Mendapatkan Nilai ${score}!`;
+            document.getElementById('quiz-options').innerHTML = `
+                <div class="col-span-2 text-center py-4 bg-white rounded-xl border-2 border-purple-300">
+                    <p class="font-game text-lg text-purple-900 mb-2">Luar Biasa, Sahabat Matematika!</p>
+                    <button onclick="startQuiz()" class="bg-purple-600 text-white font-game px-6 py-2 rounded-xl text-sm shadow-md btn-bounce">
+                        🎮 Main Lagi
+                    </button>
+                </div>
+            `;
+            document.getElementById('quiz-mascot').innerText = score >= 80 ? "🏆" : "👍";
+            document.getElementById('quiz-feedback').innerText = score >= 80 ? "Kamu Pintar Sekali!" : "Terus Berlatih Ya!";
+        }
+
+        /* ----------------------------------------------------
+         * INITIALIZATION
+         * ---------------------------------------------------- */
+        window.onload = function() {
+            initShapeSelector();
+            selectShape('kubus');
+            render3D();
+        };
+    </script>
+</body>
+</html>
